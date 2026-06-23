@@ -1,0 +1,14 @@
+[project]
+name = "atlas"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "faicons>=0.2.2",
+    "geopy>=2.4.1",
+    "ipyleaflet>=0.20.0",
+    "pandas>=3.0.3",
+    "shiny>=1.6.3",
+    "shinywidgets>=0.8.1",
+]
