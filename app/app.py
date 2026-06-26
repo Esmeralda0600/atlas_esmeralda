@@ -1,24 +1,39 @@
+import datetime as dt
+import sys
+from pathlib import Path
+
+# Permite `shiny run app/app.py` desde cualquier cwd: la raíz del repo debe estar
+# en sys.path para importar el paquete de UI `components`.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from shiny import App
 from shinywidgets import output_widget
 
-from components.shared import BASEMAPS, VARS
+from atlas import catalog
+from components.shared import BASEMAPS, INDICES
 from components.panels import (
-    select_index,
+    legend_panel,
+    page_two_sidebars,
     select_basemap,
+    select_date,
+    select_index,
     sidebar_left,
     sidebar_right,
-    page_two_sidebars,
 )
 from components.servers import map_server
 
-variables = list(VARS.keys())
+# Límites de fecha derivados del cubo. Por defecto, una fecha de verano (más vistosa).
+_FECHA_MIN, _FECHA_MAX = catalog.date_bounds()
+_FECHA_DEFECTO = min(max(dt.date(_FECHA_MIN.year, 6, 15), _FECHA_MIN), _FECHA_MAX)
 
 app_ui = page_two_sidebars(
     left=sidebar_left(
         select_basemap(BASEMAPS),
     ),
     right=sidebar_right(
-        select_index(variables),
+        select_index(INDICES),
+        select_date(_FECHA_MIN, _FECHA_MAX, value=_FECHA_DEFECTO),
+        legend_panel(),
     ),
     main=output_widget("map"),
 )
