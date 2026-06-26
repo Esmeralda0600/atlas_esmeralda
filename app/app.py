@@ -19,6 +19,7 @@ from components.panels import (
     select_index,
     sidebar_left,
     sidebar_right,
+    timeseries_panel,
 )
 from components.servers import map_server
 
@@ -34,6 +35,7 @@ app_ui = page_two_sidebars(
         select_index(INDICES),
         select_date(_FECHA_MIN, _FECHA_MAX, value=_FECHA_DEFECTO),
         legend_panel(),
+        timeseries_panel(),
     ),
     main=output_widget("map"),
 )

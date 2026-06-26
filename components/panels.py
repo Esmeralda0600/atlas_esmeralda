@@ -35,6 +35,14 @@ def legend_panel():
     return ui.output_ui("leyenda")
 
 
+def timeseries_panel():
+    return ui.div(
+        ui.tags.hr(),
+        ui.output_text("celda_info"),
+        ui.output_plot("serie", height="240px"),
+    )
+
+
 def sidebar_left(*args):
     return ui.sidebar(*args, bg="#f8f8f8", open="always")
 
