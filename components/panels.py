@@ -51,8 +51,21 @@ def sidebar_right(*args):
     return ui.sidebar(*args, position="right", bg="#f8f8f8", open="always", width=320)
 
 
+# Renderizado pixelado (nearest-neighbor) de la capa de imagen del mapa: cada
+# celda de 0.25° se ve como un bloque nítido, sin suavizado/interpolación del
+# navegador. Deja claro que los datos están discretizados al grid.
+_DISCRETE_RASTER_CSS = ui.tags.style(
+    ".leaflet-image-layer{"
+    "image-rendering:pixelated;"
+    "image-rendering:-moz-crisp-edges;"
+    "image-rendering:crisp-edges;"
+    "}"
+)
+
+
 def page_two_sidebars(left, main, right):
     return ui.page_fillable(
+        _DISCRETE_RASTER_CSS,
         ui.layout_sidebar(
             left,
             ui.layout_sidebar(right, main),
