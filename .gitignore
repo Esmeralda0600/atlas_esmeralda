@@ -1,0 +1,17 @@
+# Datos (fuera de Git — se regeneran con la ingesta)
+data/
+
+# Zarr stores en cualquier ubicación
+*.zarr/
+
+# Entornos / uv
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Sistema
+.DS_Store
