@@ -27,7 +27,7 @@ def select_basemap(BASEMAPS):
         "basemap",
         "Mapa base",
         choices=list(BASEMAPS.keys()),
-        selected="Positron",
+        selected="NatGeoWorldMap",
     )
 
 
@@ -43,8 +43,19 @@ def timeseries_panel():
     )
 
 
+def socioeconomic_panel():
+    """Panel derecho — reservado para indicadores socioeconómicos (fase futura)."""
+    return ui.div(
+        ui.tags.b("Indicadores socioeconómicos"),
+        ui.tags.p(
+            "Próximamente: capas INEGI y cruces de vulnerabilidad energética.",
+            style="font-size:12px;color:#666;",
+        ),
+    )
+
+
 def sidebar_left(*args):
-    return ui.sidebar(*args, bg="#f8f8f8", open="always")
+    return ui.sidebar(*args, bg="#f8f8f8", open="always", width=340)
 
 
 def sidebar_right(*args):

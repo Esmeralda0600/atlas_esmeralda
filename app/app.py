@@ -19,6 +19,7 @@ from components.panels import (
     select_index,
     sidebar_left,
     sidebar_right,
+    socioeconomic_panel,
     timeseries_panel,
 )
 from components.servers import map_server
@@ -30,12 +31,13 @@ _FECHA_DEFECTO = min(max(dt.date(_FECHA_MIN.year, 6, 15), _FECHA_MIN), _FECHA_MA
 app_ui = page_two_sidebars(
     left=sidebar_left(
         select_basemap(BASEMAPS),
-    ),
-    right=sidebar_right(
         select_index(INDICES),
         select_date(_FECHA_MIN, _FECHA_MAX, value=_FECHA_DEFECTO),
         legend_panel(),
         timeseries_panel(),
+    ),
+    right=sidebar_right(
+        socioeconomic_panel(),
     ),
     main=output_widget("map"),
 )
