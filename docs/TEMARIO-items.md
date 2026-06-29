@@ -1,0 +1,160 @@
+# Temario por ítems — Atlas v1 (catálogo de estudio/implementación)
+
+> Versión **no temporal** del [temario](TEMARIO.md): una lista de ítems
+> independientes que cada estudiante estudia, implementa y **somete a crítica
+> contra la literatura**. No hay calendario; el orden sugerido es de fundamentos
+> a avanzado, pero pueden escogerse según necesidad.
+>
+> **Cada ítem tiene la misma estructura:**
+> - 📖 **Estudiar** — el concepto mínimo a dominar.
+> - 🔨 **Implementar** — el entregable concreto.
+> - 🔍 **¿Es la mejor opción?** — la decisión a cuestionar + alternativas a comparar con bibliografía.
+>
+> Producto esperado por cada ítem 🔍: un párrafo de decisión razonada (mini-ADR)
+> con evidencia propia (benchmark/prueba) y al menos una referencia.
+
+---
+
+## Ítems comunes (ambas personas)
+
+### C1 — Entorno y reproducibilidad con `uv`
+- [ ] 📖 Gestión de proyectos Python con `uv` (sync, run, add, lock); por qué no `pip`/venv manual.
+- [ ] 🔨 Clonar, `uv sync`, correr un script; agregar una dependencia y ver el `uv.lock`.
+- [ ] 🔍 ¿`uv` o `poetry`/`pdm`/`conda`/`pip-tools`? Compara velocidad, lockfile, reproducibilidad. → docs de `uv`, comparativas de gestores.
+
+### C2 — Git con commits pequeños y ramas
+- [ ] 📖 Flujo de ramas, commits atómicos, mensajes claros.
+- [ ] 🔨 Trabajar en una rama propia; abrir PR hacia la rama de integración.
+- [ ] 🔍 ¿*trunk-based* o *git-flow* para un equipo de 2? → literatura de estrategias de branching.
+
+### C3 — El contrato de interfaz (esquema del cubo)
+- [ ] 📖 Por qué un contrato explícito permite trabajo en paralelo.
+- [ ] 🔨 Definir juntos el esquema del Zarr (dims, coords, unidades, orden) y un `tests/test_contrato.py` que lo valide; crear un **fixture Zarr sintético** para que B no dependa de A.
+- [ ] 🔍 ¿Validar con pruebas, o con un esquema declarativo (p. ej. `xarray` + `pandera`/`cf-checker`/JSON Schema)? → docs de validación de datos.
+
+### C4 — UTCI y ERA5-HEAT (dominio)
+- [ ] 📖 Qué integra el UTCI (aire, humedad, viento, radiación); la escala de estrés; qué es ERA5-HEAT y su resolución/cobertura.
+- [ ] 🔨 Resumen de 1 página del dataset y la variable.
+- [ ] 🔍 ¿UTCI es el índice adecuado para confort en edificaciones en México, o conviene IMAC/grados-hora? → Bröde et al. (2012); literatura de confort adaptativo (IMAC).
+
+---
+
+## Persona A — Datos & Store
+
+> **Objetivo:** convertir ERA5-HEAT (UTCI) crudo en un cubo Zarr perezoso,
+> escalable a años y variables, y justificar cada decisión de almacenamiento.
+
+### A1 — Adquisición de datos (CDS API)
+- [ ] 📖 La Climate Data Store API y `cdsapi`; autenticación; pedir un subset por bbox/fechas.
+- [ ] 🔨 Script que descargue un mes de UTCI para el bbox de México de forma programática.
+- [ ] 🔍 ¿Descarga vía `cdsapi`, o acceso directo a Zarr/STAC en la nube (ARCO-ERA5, Google/AWS)? ¿Conviene descargar o consumir remoto? → docs CDS, Pangeo/ARCO-ERA5, STAC.
+
+### A2 — NetCDF + xarray (lectura)
+- [ ] 📖 Modelo de datos de xarray (`Dataset`/`DataArray`, dims, coords, attrs); convenciones CF; lectura perezosa con Dask.
+- [ ] 🔨 Abrir un archivo diario, inspeccionar todo, convertir Kelvin→°C, documentar atributos.
+- [ ] 🔍 ¿xarray sobre `netCDF4`/`h5netcdf`, o `iris`/`cfgrib` u otra pila? ¿Qué *engine* conviene? → docs xarray, comparativa de engines.
+
+### A3 — Series temporales sobre el cubo
+- [ ] 📖 `resample` (máx/mín/media diaria), selección `nearest`, ciclo diurno, **UTC vs hora local**.
+- [ ] 🔨 Computar UTCI máx diario (campo) y la serie horaria de una celda.
+- [ ] 🔍 ¿Agregar al vuelo, o pre-agregar a diario en la ingesta? (costo cómputo vs almacenamiento vs flexibilidad para índices futuros). → docs xarray/pandas resample.
+
+### A4 — Chunking
+- [ ] 📖 Qué es un *chunk*, cómo el chunking decide qué se lee; alinear chunking con patrones de acceso.
+- [ ] 🔨 **Benchmark**: medir "leer un día" vs "leer la serie de una celda" con 2–3 chunkings (p. ej. `time=24`, `time=168`, `time=full`).
+- [ ] 🔍 ¿`time=24` (un día) es óptimo para *esta* app, o lo es otro? Defiende con tus números. → docs Zarr/Dask sobre chunking; guía Pangeo "choosing chunk sizes".
+
+### A5 — Compresión y tipos
+- [ ] 📖 Codecs (zstd, blosc, zlib), niveles, *shuffle*; `float32` vs cuantización/escala-offset.
+- [ ] 🔨 Reescribir el cubo con 2 codecs/niveles y comparar tamaño y tiempo de lectura.
+- [ ] 🔍 ¿zstd nivel 0 es la mejor relación, o conviene blosc/otro nivel? ¿Vale cuantizar? → docs `numcodecs`, benchmarks de compresión científica.
+
+### A6 — Formato de almacenamiento (la decisión grande)
+- [ ] 📖 Zarr (v3): grupo/array, layout en disco, metadatos; *append*; almacenamiento en nube.
+- [ ] 🔨 Escribir y reabrir un cubo Zarr; inspeccionar la carpeta (`zarr.json`, chunks).
+- [ ] 🔍 **¿Zarr es la herramienta correcta?** Compara contra NetCDF directo, HDF5, **TileDB**, **Parquet/Arrow**, **COG**, GRIB, **Icechunk** — frente a estos patrones de acceso y a la escala esperada. → CNG Foundation (formatos), specs Zarr v3, Icechunk, TileDB.
+
+### A7 — Metadatos consolidados / catálogo
+- [ ] 📖 `consolidated metadata` (y su estatus deprecado en Zarr v3); cómo se descubren fechas/variables.
+- [ ] 🔨 Implementar `open_cube()` perezoso + listado de fechas/variables disponibles.
+- [ ] 🔍 ¿Consolidar metadatos, o un catálogo externo (**STAC**, **intake**, **kerchunk**)? → docs intake/STAC/kerchunk.
+
+### A8 — Pipeline de ingesta idempotente
+- [ ] 📖 `open_mfdataset` (combinar muchos NetCDF), idempotencia, *append* por `time`, validación de solapamientos.
+- [ ] 🔨 `atlas-ingest <tipo> <año>` que cree/extienda el cubo sin duplicar y rechace solapamientos parciales.
+- [ ] 🔍 ¿Idempotencia por `time` y *append-only*, o **region writes**/Icechunk (transaccional) para insertar años en cualquier orden? → docs Zarr region writes, Icechunk.
+
+### A9 — Multi-variable / multi-año (el hueco real)
+- [ ] 📖 Cubo de varias variables compartiendo coords vs. *store por variable* con rangos temporales distintos.
+- [ ] 🔨 Diseñar e implementar una de las dos opciones; ingerir una 2ª variable o un año fuera de orden.
+- [ ] 🔍 ¿Un store compartido (con NaN al alinear) o uno por variable + catálogo? → literatura de *data cubes* / Pangeo.
+
+### A10 — Robustez y pruebas
+- [ ] 📖 `pytest`, fixtures, validación de días faltantes/huecos, logging.
+- [ ] 🔨 Suite que pruebe idempotencia, normalización de unidades y huecos.
+- [ ] 🔍 ¿Pruebas unitarias bastan, o conviene *data validation* declarativa (pandera/great-expectations)? → docs de esas librerías.
+
+---
+
+## Persona B — Visualización & App
+
+> **Objetivo:** app que pinta el campo UTCI en un mapa de México y grafica la
+> serie de una celda al clic, justificando cada decisión de visualización.
+
+### B1 — Framework de app reactiva
+- [ ] 📖 Shiny for Python: `input`/`output`, `reactive.calc`, `reactive.effect`, `@render.*`; flujo reactivo.
+- [ ] 🔨 Mini-app reactiva (un control que actualiza una salida).
+- [ ] 🔍 **¿Shiny, o Dash/Streamlit/Panel/JS puro?** Criterios: modelo reactivo, despliegue, curva, que ClimaLab ya use Shiny. → docs Shiny/Dash/Streamlit/Panel.
+
+### B2 — Mapas web y CRS
+- [ ] 📖 *Tiles*, basemaps, **CRS** (EPSG:4326 dato vs 3857 display); conceptos de Leaflet.
+- [ ] 🔨 Mapa con basemap centrado en México dentro de Shiny (vía `shinywidgets`).
+- [ ] 🔍 ¿Cuánta distorsión introduce pintar dato 4326 sobre mapa 3857 a lat 14–33° N? ¿Reproyectar con rioxarray vale la pena? → spatialreference.org, docs rioxarray.
+
+### B3 — Librería de mapa
+- [ ] 📖 `ipyleaflet` y su integración con `shinywidgets`; capas, eventos.
+- [ ] 🔨 Renderizar una capa y manejar un evento básico.
+- [ ] 🔍 **¿ipyleaflet, o leafmap/folium/pydeck/maplibre/lonboard?** Reimplementa UNA feature en otra y compara. → docs de cada una; curso de leafmap.
+
+### B4 — Rasterización del campo
+- [ ] 📖 Pasar un arreglo 2D (lat, lon) a imagen RGBA → PNG; orientación (norte arriba), NaN transparente; `ImageOverlay` con *bounds*.
+- [ ] 🔨 Pintar un campo del fixture como `ImageOverlay` sobre México.
+- [ ] 🔍 **¿ImageOverlay (cliente) o tiling servidor (TiTiler/titiler-xarray)?** ¿A qué tamaño de malla deja de escalar el enfoque cliente? → docs TiTiler, spec COG.
+
+### B5 — Discretización vs interpolación
+- [ ] 📖 Por qué el navegador interpola imágenes al escalar; `image-rendering: pixelated`; resolución nativa del PNG.
+- [ ] 🔨 Lograr que cada celda de 0.25° se vea como bloque nítido (sin degradado).
+- [ ] 🔍 ¿PNG pixelado, o pintar la malla como capa vectorial (GeoJSON/polígonos)? Trade-off claridad vs desempeño. → docs Leaflet de capas raster/vector.
+
+### B6 — Colormap y categorías de estrés
+- [ ] 📖 Colormap discreto (ListedColormap + BoundaryNorm) vs continuo; *perceptual uniformity*; *colorblind-safe*; la escala UTCI de 10 clases.
+- [ ] 🔨 Colorear el campo por categoría de estrés + leyenda.
+- [ ] 🔍 ¿La paleta es perceptualmente uniforme y *colorblind-safe*? ¿Conviene Crameri/ColorBrewer/viridis? → Crameri *Scientific colour maps*, ColorBrewer, docs matplotlib.
+
+### B7 — Reactividad del campo (fecha/índice)
+- [ ] 📖 Actualizar una capa sin reconstruir el mapa (preservar zoom/paneo); `reactive.effect`.
+- [ ] 🔨 Selectores de fecha e índice que repinten el overlay manteniendo la vista.
+- [ ] 🔍 ¿Mutar la capa vía `effect`, o reconstruir el widget? Costo/UX. → docs Shiny reactividad, shinywidgets.
+
+### B8 — Interacción: clic → serie temporal
+- [ ] 📖 `on_interaction` de ipyleaflet; pasar el evento a un `reactive.Value`; celda *nearest*; graficar con etiquetas en **UTC**.
+- [ ] 🔨 Clic en el mapa → serie horaria de esa celda con bandas de estrés.
+- [ ] 🔍 ¿Graficar con matplotlib (`@render.plot`), o Plotly/Altair interactivos? Trade-offs. → docs Shiny outputs, Plotly/Altair.
+
+### B9 — Arquitectura: índice pluggable y separación UI/núcleo
+- [ ] 📖 Por qué el cómputo no debe depender de Shiny; un registro de índices como punto de extensión.
+- [ ] 🔨 Registrar un 2º índice (p. ej. UTCI mínimo/media diaria) y verlo en la UI **sin tocar** la app.
+- [ ] 🔍 ¿Registro/*plugin* o configuración declarativa (entry points/YAML)? → patrones de plugins en Python (`importlib.metadata` entry points).
+
+### B10 — Empaquetado y arranque
+- [ ] 📖 Estructura `src/` instalable, separar paquete (`atlas`) de capa de app (`components`/`app`); entry points.
+- [ ] 🔨 Que `uv run shiny run app/app.py` arranque limpio; opcional un comando `atlas-app`.
+- [ ] 🔍 ¿`src/` layout + hatchling, o flat layout/otra build backend? → guía de empaquetado de Python (PyPA).
+
+---
+
+## Cómo evaluar cada ítem
+Un ítem está **completo** cuando: (1) el entregable 🔨 funciona y está commiteado;
+(2) existe el mini-ADR 🔍 con evidencia propia + ≥1 referencia; (3) cumple el
+contrato C3 si toca el cubo. La integración final exige que la app de B corra
+sobre el cubo real de A.
