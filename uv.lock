@@ -154,6 +154,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "dask" },
+    { name = "enmascaramiento-celsius" },
     { name = "faicons" },
     { name = "geopandas" },
     { name = "geopy" },
@@ -174,6 +175,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "dask", specifier = ">=2026.6.0" },
+    { name = "enmascaramiento-celsius", directory = "../enmascaramiento_celsius" },
     { name = "faicons", specifier = ">=0.2.2" },
     { name = "geopandas", specifier = ">=1.1.4" },
     { name = "geopy", specifier = ">=2.4.1" },
@@ -571,6 +573,31 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/25/71/80cc718ff6d7abfbabacb1f57aaa42e9c1552bfdd01e64ddd704e4a03638/donfig-0.8.1.post1.tar.gz", hash = "sha256:3bef3413a4c1c601b585e8d297256d0c1470ea012afa6e8461dc28bfb7c23f52", size = 19506, upload-time = "2024-05-23T14:14:31.513Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0c/d5/c5db1ea3394c6e1732fb3286b3bd878b59507a8f77d32a2cebda7d7b7cd4/donfig-0.8.1.post1-py3-none-any.whl", hash = "sha256:2a3175ce74a06109ff9307d90a230f81215cbac9a751f4d1c6194644b8204f9d", size = 21592, upload-time = "2024-05-23T14:13:55.283Z" },
+]
+
+[[package]]
+name = "enmascaramiento-celsius"
+version = "0.1.0"
+source = { directory = "../enmascaramiento_celsius" }
+dependencies = [
+    { name = "geopandas" },
+    { name = "jupyter" },
+    { name = "matplotlib" },
+    { name = "netcdf4" },
+    { name = "notebook" },
+    { name = "rioxarray" },
+    { name = "xarray" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "geopandas", specifier = ">=1.1.4" },
+    { name = "jupyter", specifier = ">=1.1.1" },
+    { name = "matplotlib", specifier = ">=3.11.0" },
+    { name = "netcdf4", specifier = ">=1.7.4" },
+    { name = "notebook", specifier = ">=7.6.0" },
+    { name = "rioxarray", specifier = ">=0.22.0" },
+    { name = "xarray", specifier = ">=2026.4.0" },
 ]
 
 [[package]]
