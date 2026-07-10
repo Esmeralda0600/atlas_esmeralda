@@ -1,50 +1,27 @@
-import datetime as dt
-import sys
-from pathlib import Path
+"""
+app.py
 
-# Permite `shiny run app/app.py` desde cualquier cwd: la raíz del repo debe estar
-# en sys.path para importar el paquete de UI `components`.
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+1. SSRD: mapa interactivo (ipyleaflet) con el promedio anual de
+   radiación solar (W/m^2), y anomalía estacional (estación - anual)
+   para DJF/MAM/JJA/SON. Al hacer click en el mapa se muestra una
+   gráfica de barras con la anomalía estacional del punto vs. el
+   promedio nacional.
+
+2. Estrés térmico (UTCI): mapa de la categoria de estres termico UTCI
+   mas frecuente en cada pixel (anual o por estacion), y grafica de
+   barras con el % de tiempo en cada una de las 10 categorias, a nivel
+   nacional y (al hacer click) para el punto seleccionado.
+
+La lógica está dividida en components/:
+    - shared.py  -> datos, rutas y utilidades comunes
+    - panels.py  -> definicion de la interfaz (app_ui)
+    - servers.py -> logica reactiva (server)
+
+"""
 
 from shiny import App
-from shinywidgets import output_widget
 
-from atlas import catalog
-from components.shared import BASEMAPS, INDICES
-from components.panels import (
-    legend_panel,
-    page_two_sidebars,
-    select_basemap,
-    select_date,
-    select_index,
-    sidebar_left,
-    sidebar_right,
-    socioeconomic_panel,
-    timeseries_panel,
-)
-from components.servers import map_server
-
-# Límites de fecha derivados del cubo. Por defecto, una fecha de verano (más vistosa).
-_FECHA_MIN, _FECHA_MAX = catalog.date_bounds()
-_FECHA_DEFECTO = min(max(dt.date(_FECHA_MIN.year, 6, 15), _FECHA_MIN), _FECHA_MAX)
-
-app_ui = page_two_sidebars(
-    left=sidebar_left(
-        select_basemap(BASEMAPS),
-        select_index(INDICES),
-        select_date(_FECHA_MIN, _FECHA_MAX, value=_FECHA_DEFECTO),
-        legend_panel(),
-        timeseries_panel(),
-    ),
-    right=sidebar_right(
-        socioeconomic_panel(),
-    ),
-    main=output_widget("map"),
-)
-
-
-def server(input, output, session):
-    map_server(input)
-
+from components.panels import app_ui
+from components.servers import server
 
 app = App(app_ui, server)

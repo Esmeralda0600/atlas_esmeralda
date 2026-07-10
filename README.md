@@ -1,137 +1,280 @@
-# atlas — visor de estrés térmico UTCI para México
+# Atlas Climático de México
 
-Visor interactivo del índice **UTCI** (*Universal Thermal Climate Index*, la
-temperatura "de sensación" que integra aire, humedad, viento y radiación) sobre
-México, a partir del dataset **ERA5-HEAT** de Copernicus. Inspirado en la
-arquitectura de [Thermal Trace](https://thermaltrace.climate.copernicus.eu),
-scopeado a México y pensado como base del *Atlas Nacional de Vulnerabilidad
-Energética* (IER-UNAM).
+Aplicación interactiva desarrollada con **Shiny para Python** para la exploración de variables climáticas derivadas de ERA5.
 
-La app deja elegir una **fecha** y un **índice/agregación**, computa el campo 2D
-al vuelo con xarray sobre un cubo **Zarr**, lo pinta en un mapa interactivo y, al
-hacer **clic** en un punto, grafica la **serie temporal horaria** de esa celda.
+Actualmente la aplicación permite visualizar:
 
-![Campo de UTCI máximo diario sobre México](docs/preview.png)
+- **SSRD (Surface Solar Radiation Downwards):** radiación solar incidente en superficie.
+- **UTCI (Universal Thermal Climate Index):** índice de estrés térmico.
 
-## Requisitos
+La aplicación utiliza datos de ERA5 previamente procesados para generar mapas interactivos y visualizaciones que permiten comparar el comportamiento promedio nacional con un punto específico seleccionado por el usuario.
 
-- [`uv`](https://docs.astral.sh/uv/) (gestión de Python y dependencias).
-- Python ≥ 3.13 (lo provee `uv`).
+---
 
-> El proyecto se gestiona **exclusivamente con `uv`**. No uses `pip` ni venvs manuales.
+# Estructura del proyecto
 
-## Puesta en marcha
+```text
+ATLAS/
+│
+├── app/
+│   ├── app.py
+│   └── components/
+│       ├── panels.py
+│       ├── servers.py
+│       └── shared.py
+│
+├── data/
+│   ├── 001_raw/
+│   └── 002_processed/
+│
+├── docs/
+├── notebooks/
+├── pyproject.toml
+├── uv.lock
+└── README.md
+```
+
+---
+
+# Requisitos
+
+- Python 3.12 o superior
+- Git
+- uv
+
+> **Nota:** Si aún no tienes instalado **uv**, puedes seguir la guía oficial de instalación:
+>
+> https://docs.astral.sh/uv/
+
+---
+
+# Instalación
+
+## 1. Clonar el repositorio
+
+La versión actual del proyecto se encuentra en la rama **`feat/utci-viewer-v1`**.
 
 ```bash
-# 1. Instalar dependencias (crea el entorno y compila el paquete `atlas`)
+git clone --branch feat/utci-viewer-v1 https://github.com/Esmeralda0600/atlas_esmeralda.git
+cd atlas_esmeralda
+```
+
+---
+
+## 2. Instalar las dependencias
+
+Desde la raíz del proyecto ejecutar:
+
+```bash
 uv sync
-
-# 2. Construir el cubo Zarr desde los NetCDF de ERA5-HEAT
-#    (espera los archivos en data/raw/<TIPO>/<AÑO>/*.nc)
-uv run atlas-ingest UTCI 2022
-
-# 3. Arrancar la app
-uv run shiny run app/app.py
-# abre http://127.0.0.1:8000
 ```
 
-## Datos
+Este comando:
 
-Los datos viven **fuera de Git** (`data/`, ignorado). Layout canónico:
+- Crea automáticamente un entorno virtual (si no existe).
+- Instala todas las dependencias definidas en `pyproject.toml`.
+- Utiliza `uv.lock` para garantizar un entorno reproducible.
 
+---
+
+# Gestión de dependencias
+
+Este proyecto utiliza **uv** como gestor de paquetes y entornos virtuales.
+
+Las dependencias se encuentran definidas en el archivo:
+
+```text
+pyproject.toml
 ```
+
+Mientras que el archivo
+
+```text
+uv.lock
+```
+
+garantiza que todos los usuarios instalen exactamente las mismas versiones de las dependencias, favoreciendo la reproducibilidad del proyecto.
+
+---
+
+# Datos necesarios
+
+Debido al tamaño de los archivos, el repositorio **no incluye** los siguientes datos:
+
+```text
 data/
-├─ raw/UTCI/2022/ECMWF_utci_YYYYMMDD_v1.1_*.nc   # NetCDF fuente (ERA5-HEAT)
-└─ utci_mexico.zarr/                              # cubo construido por la ingesta
+├── 001_raw/
+│   ├── ERA5_mexico_2022.nc
+│   ├── stress_utci_anual_2022.nc
+│   └── stress_utci_seasonal_2022.nc
+│
+└── 002_processed/
+    ├── mexico_mask.gpkg
+    └── ssrd_mexico_estacional.nc
 ```
 
-El recorte es México continental + mar adyacente (lon −119…−86, lat 14…33) a
-0.25° (77×133 celdas), horario. La ingesta:
+Para ejecutar correctamente la aplicación, estos archivos deben generarse nuevamente mediante los notebooks y scripts incluidos en este repositorio, o bien copiarse manualmente los archivos los encontraras en : https://drive.google.com/file/d/1tPWJa8XgdH6Lbq8tvBAmf2TA6azlEkDJ/view?usp=sharing
 
-- normaliza unidades (Kelvin → °C),
-- ordena lat ascendente y el tiempo,
-- escribe el cubo con chunk diario (`time=24`),
-- es **idempotente** (re-ingerir un año no duplica) y soporta **append** de años
-  posteriores (`atlas-ingest UTCI 2023`, …).
+---
 
-> El tiempo del cubo está en **UTC**; las series horarias se etiquetan como UTC.
+# Descripción de los archivos de datos
 
-## Arquitectura
+## `ERA5_mexico_2022.nc`
 
-Cuatro capas desacopladas; el núcleo de cómputo no depende de Shiny.
+Archivo NetCDF que contiene los datos meteorológicos originales de ERA5 utilizados para calcular las variables mostradas en la aplicación.
 
-```
-NetCDF (ERA5-HEAT)
-   │  atlas-ingest  (atlas/ingest.py)
-   ▼
-data/utci_mexico.zarr            ← cubo (time, lat, lon)
-   │  atlas/catalog.py  (open_cube perezoso, fechas/variables)
-   ▼
-atlas/indices.py   registro PLUGGABLE de índices  ──┐
-atlas/compute.py   field_for(fecha, índice) / series_at(lat, lon)
-atlas/render.py    campo 2D → PNG (colormap de estrés) + leyenda
-atlas/plots.py     serie horaria → figura
-   │
-   ▼
-components/  (Shiny: panels, servers, shared)  +  app/app.py
+Ubicación:
+
+```text
+data/001_raw/
 ```
 
-- **`src/atlas/`** es un **paquete instalable** (layout `src/`, listo para pip).
-  Cubre ingesta + cómputo + render. Expone el comando `atlas-ingest`.
-- **`components/` + `app/`** son la capa de aplicación (Shiny) que consume el paquete.
-- **Mapa**: `ipyleaflet` (vía `shinywidgets`) con `ImageOverlay`. A 0.25° el campo
-  entero (~10k celdas) se rasteriza a un PNG y se pinta al instante; no hace falta
-  tiling.
+---
 
-### Índice pluggable (extensibilidad)
+## `stress_utci_anual_2022.nc`
 
-El diferenciador de investigación: un índice es una función pura sobre el cubo
-horario, registrada en `atlas/indices.py`. Agregar uno nuevo (p. ej. IMAC o
-grados-hora de confort adaptativo) es registrar un `Index` más — la UI lo recoge
-automáticamente, sin tocar la app.
+Archivo NetCDF con la clasificación anual de categorías de estrés térmico UTCI.
 
-```python
-from atlas.indices import Index, register
+Ubicación:
 
-register(Index(
-    key="utci_max_diario",
-    label="UTCI máximo diario",
-    units="°C",
-    var="utci",
-    aggregate=lambda da: da.max("time", keep_attrs=True),  # día horario → campo 2D
-    categories=UTCI_STRESS,        # tabla ECMWF de 10 clases (opcional)
-    classify=classify_utci,
-))
+```text
+data/001_raw/
 ```
 
-## Demos (sin navegador)
+---
+
+## `stress_utci_seasonal_2022.nc`
+
+Archivo NetCDF con las categorías UTCI correspondientes a cada estación del año.
+
+Ubicación:
+
+```text
+data/001_raw/
+```
+
+---
+
+## `mexico_mask.gpkg`
+
+Archivo GeoPackage que contiene la máscara geográfica de México utilizada para recortar los datos de ERA5.
+
+Ubicación:
+
+```text
+data/002_processed/
+```
+
+---
+
+## `ssrd_mexico_estacional.nc`
+
+Archivo NetCDF procesado que almacena:
+
+- Promedio anual de SSRD.
+- Promedios estacionales (DJF, MAM, JJA y SON).
+
+Ubicación:
+
+```text
+data/002_processed/
+```
+
+---
+
+# Flujo de generación de datos
+
+Los notebooks ubicados en la carpeta
+
+```text
+notebooks/
+```
+
+documentan el procesamiento realizado para generar los archivos utilizados por la aplicación.
+
+## Procesamiento de SSRD
+
+```text
+ERA5
+ │
+ ▼
+ERA5_mexico_2022.nc
+ │
+ ▼
+mask_convert.py
+ │
+ ▼
+convert_ssrd.py
+ │
+ ▼
+ssrd_mexico_estacional.nc
+ │
+ ▼
+Aplicación Shiny
+```
+
+## Procesamiento de UTCI
+
+```text
+ERA5
+ │
+ ▼
+utci_stress.py
+ │
+ ├──► stress_utci_anual_2022.nc
+ │
+ └──► stress_utci_seasonal_2022.nc
+         │
+         ▼
+   Aplicación Shiny
+```
+
+---
+
+# Ejecutar la aplicación
+
+Desde la raíz del proyecto ejecutar:
 
 ```bash
-uv run python scripts/demo_m2.py   # campo, distribución de estrés, ciudades, serie (texto)
-uv run python scripts/demo_m3.py salida.png   # vista previa del campo coloreado
-uv run python scripts/demo_m4.py salida.png   # serie horaria que produce un clic
+uv run shiny run app/app.py
 ```
 
-## Estructura del repo
+Una vez iniciada la aplicación, abrir en el navegador la dirección mostrada por Shiny (generalmente `http://127.0.0.1:8000`).
 
-```
-src/atlas/      paquete instalable (config, ingest, catalog, indices, compute, render, plots, cli)
-components/      capa Shiny (shared, panels, servers)
-app/app.py       ensamblado de la app
-scripts/         demos
-docs/PLAN.md     plan e hitos
-data/            datos (fuera de Git)
-```
+---
 
-## Fases futuras (fuera de alcance v1)
+# Tecnologías utilizadas
 
-Anotadas, **no** construidas todavía:
+## Lenguaje
 
-- Tiling dinámico / TiTiler / COG (innecesario a esta resolución).
-- Anomalías vs climatología 1991-2020; escalas estacional y anual.
-- Capas INEGI nivel AGEB y cruces de vulnerabilidad energética.
-- Almacenamiento DuckLake / Parquet / Icechunk.
-- Índices propios de confort adaptativo (IMAC, grados-hora) vía el registro de
-  índices — el diferenciador de la investigación.
-- Hora local de México (hoy las series se muestran en UTC).
-- Entry point `atlas-app` para arrancar la app como comando.
+- Python
+
+## Framework
+
+- Shiny for Python
+
+## Procesamiento de datos
+
+- xarray
+- NumPy
+- GeoPandas
+- Rasterio
+- NetCDF4
+
+## Visualización
+
+- ipyleaflet
+- Matplotlib
+- Pillow
+
+## Gestión del proyecto
+
+- uv
+
+---
+
+# Nota
+
+Este repositorio contiene únicamente el código fuente de la aplicación.
+
+Los archivos NetCDF y GeoPackage utilizados durante el procesamiento fueron excluidos del control de versiones debido a su tamaño. Para reproducir completamente el proyecto es necesario generar dichos archivos mediante los notebooks y scripts incluidos en este repositorio, o colocarlos manualmente en las rutas indicadas.

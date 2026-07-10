@@ -7,7 +7,9 @@ en cada categoría de estrés térmico.
 """
 
 import xarray as xr
-from atlas.mask import mask_netcdf
+
+from scripts.mask_convert import mask_netcdf
+
 
 UTCI_LEVELS = {
     0: (float("-inf"), -40, "Estrés por frío extremo"),

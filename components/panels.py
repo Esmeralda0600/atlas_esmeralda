@@ -1,85 +1,86 @@
-import datetime as dt
 
 from shiny import ui
+from shinywidgets import output_widget
 
+from components.shared import ETIQUETAS_CAPAS_SSRD, ETIQUETAS_CAPAS_UTCI
 
-def select_index(indices_labels, selected=None):
-    return ui.input_selectize(
-        "indice",
-        "Índice",
-        choices=list(indices_labels),
-        selected=selected or (list(indices_labels)[0] if indices_labels else None),
-    )
-
-
-def select_date(min_date: dt.date, max_date: dt.date, value: dt.date | None = None):
-    return ui.input_date(
-        "fecha",
-        "Fecha",
-        value=value or max_date,
-        min=min_date,
-        max=max_date,
-    )
-
-
-def select_basemap(BASEMAPS):
-    return ui.input_selectize(
-        "basemap",
-        "Mapa base",
-        choices=list(BASEMAPS.keys()),
-        selected="NatGeoWorldMap",
-    )
-
-
-def legend_panel():
-    return ui.output_ui("leyenda")
-
-
-def timeseries_panel():
-    return ui.div(
-        ui.tags.hr(),
-        ui.output_text("celda_info"),
-        ui.output_plot("serie", height="240px"),
-    )
-
-
-def socioeconomic_panel():
-    """Panel derecho — reservado para indicadores socioeconómicos (fase futura)."""
-    return ui.div(
-        ui.tags.b("Indicadores socioeconómicos"),
-        ui.tags.p(
-            "Próximamente: capas INEGI y cruces de vulnerabilidad energética.",
-            style="font-size:12px;color:#666;",
+app_ui = ui.page_navbar(
+    ui.nav_panel(
+        "SSRD",
+        ui.page_sidebar(
+            ui.sidebar(
+                ui.h4("Radiación solar (SSRD)"),
+                ui.p(
+                    "'Anual' muestra el promedio absoluto de "
+                    "radiación (W/m²). Cada estación muestra la "
+                    "anomalía respecto al promedio anual: rojo = esa "
+                    "estación recibe más radiación de lo normal en "
+                    "ese punto, azul = recibe menos. Click en el mapa "
+                    "para comparar la estacionalidad de ese punto "
+                    "contra el promedio nacional."
+                ),
+                ui.input_radio_buttons(
+                    "capa_ssrd",
+                    "Capa del mapa",
+                    choices=list(ETIQUETAS_CAPAS_SSRD.keys()),
+                    selected="Anual",
+                ),
+                ui.hr(),
+                ui.output_ui("info_punto_ssrd"),
+                width=320,
+            ),
+            ui.layout_columns(
+                ui.card(
+                    ui.card_header("Mapa — SSRD: nivel anual / anomalía estacional"),
+                    output_widget("mapa_ssrd"),
+                    full_screen=True,
+                ),
+                ui.card(
+                    ui.card_header("Anomalía estacional: país vs. punto"),
+                    ui.output_plot("grafica_climatologia_ssrd"),
+                ),
+                col_widths=[7, 5],
+            ),
+            fillable=True,
         ),
-    )
-
-
-def sidebar_left(*args):
-    return ui.sidebar(*args, bg="#f8f8f8", open="always", width=340)
-
-
-def sidebar_right(*args):
-    return ui.sidebar(*args, position="right", bg="#f8f8f8", open="always", width=320)
-
-
-# Renderizado pixelado (nearest-neighbor) de la capa de imagen del mapa: cada
-# celda de 0.25° se ve como un bloque nítido, sin suavizado/interpolación del
-# navegador. Deja claro que los datos están discretizados al grid.
-_DISCRETE_RASTER_CSS = ui.tags.style(
-    ".leaflet-image-layer{"
-    "image-rendering:pixelated;"
-    "image-rendering:-moz-crisp-edges;"
-    "image-rendering:crisp-edges;"
-    "}"
+    ),
+    ui.nav_panel(
+        "Estrés térmico (UTCI)",
+        ui.page_sidebar(
+            ui.sidebar(
+                ui.h4("Estrés térmico (UTCI)"),
+                ui.p(
+                    "Categoría de estrés térmico más frecuente por "
+                    "punto (anual o por estación). Click en el mapa "
+                    "para ver el % de tiempo en cada categoría en ese "
+                    "punto, comparado con el promedio nacional."
+                ),
+                ui.input_radio_buttons(
+                    "capa_utci",
+                    "Periodo",
+                    choices=ETIQUETAS_CAPAS_UTCI,
+                    selected="Anual",
+                ),
+                ui.hr(),
+                ui.h5("Categorías"),
+                ui.output_ui("leyenda_utci"),
+                width=320,
+            ),
+            ui.layout_columns(
+                ui.card(
+                    ui.card_header("Categoría dominante de UTCI"),
+                    output_widget("mapa_utci"),
+                    full_screen=True,
+                ),
+                ui.card(
+                    ui.card_header("% de tiempo en cada categoría"),
+                    ui.output_plot("grafica_utci_categorias"),
+                ),
+                col_widths=[7, 5],
+            ),
+            fillable=True,
+        ),
+    ),
+    title="Atlas México",
+    fillable=True,
 )
-
-
-def page_two_sidebars(left, main, right):
-    return ui.page_fillable(
-        _DISCRETE_RASTER_CSS,
-        ui.layout_sidebar(
-            left,
-            ui.layout_sidebar(right, main),
-        ),
-        padding=0,
-    )

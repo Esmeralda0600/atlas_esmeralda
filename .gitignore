@@ -6,7 +6,7 @@
 
 # Entornos / uv
 .venv/
-
+data/
 # Python
 __pycache__/
 *.py[cod]
